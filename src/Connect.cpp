@@ -117,7 +117,6 @@ void Connect::listening() {
 			//响应数据流
 			send(connection, returnChars, strlen(returnChars), 0);
 			
-			printf("服务器响应信息:%s\n", returnChars);
 			delete returnChars;
 			item ++;
 		}

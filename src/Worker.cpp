@@ -132,7 +132,7 @@ string* Worker::del(string* key) {
 string* Worker::keys(string* param) {
 	string* res = new string;
 	int resKeySize = 0;
-	string* resKeys[dataMap.size()];
+	string resKeys[dataMap.size()];
 	
 	//遍历所有的key
 	for(map<string, string>::iterator item = dataMap.begin(); item != dataMap.end(); item ++) {
@@ -148,11 +148,6 @@ string* Worker::keys(string* param) {
 			if(paramItem == '*') {
 				isMultiPass = true;
 				continue;
-			}
-			
-			//已经扫完所有的keyItem,但仍然未循环完param,直接结束,本次过滤不合格
-			if(keyStartIndex >= keyLen) {
-				goto end;
 			}
 			
 			for(int j = keyStartIndex; j < keyLen; j++) {
@@ -185,23 +180,18 @@ string* Worker::keys(string* param) {
 			}
 		}
 		//过滤得到合格的
-		string* _key;
-		_key = new string;
-		*_key = key;
-		resKeys[++resKeySize] = _key;
+		resKeys[resKeySize] = key;
+		resKeySize ++;
 		
 		end:;
 	}
-	
 	
 	//输出
 	stringstream ss;
 	ss << "*" << resKeySize << "\r\n";
 	for(int k = 0; k < resKeySize; k++) {
-		string* key = resKeys[k];
-		cout << *key << endl;
-		ss << "$" << (*key).length() << "\r\n" << *key << "\r\n";
-//		delete key;
+		string key = resKeys[k];
+		ss << "$" << key.length() << "\r\n" << key << "\r\n";
 	}
 	*res = ss.str();
 	
