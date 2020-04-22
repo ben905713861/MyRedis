@@ -4,11 +4,10 @@
 class Connect {
 	
 public:
-	void static startServer(int port);
-	virtual ~Connect();
+	static void startServer(int port);
 private:
-	void static listening();
-	
+	static void listening();
+	static void clear(int connection, bool clearChild);
 };
 
 #endif /* CONNECT_H_ */

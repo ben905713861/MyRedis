@@ -8,7 +8,7 @@ class MessageHandler {
 	
 public:
 	static char* action(int connection, char* msg);
-	static void clear(int connection);
+	static void clear(int connection, bool clearChild);
 private:
 	static void* decode(string commandStr, int& startIndex);
 	

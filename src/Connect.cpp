@@ -13,6 +13,10 @@ using namespace std;
 
 
 int listenfd;
+//连接池
+list<int> connectionList;
+//连接描述符集合
+fd_set fds;
 
 void Connect::startServer(int port) {
 	//创建 IPv4协议的字节流套接字,若成功则返回一个套接字描述符
@@ -50,11 +54,7 @@ void Connect::startServer(int port) {
 
 
 void Connect::listening() {
-	//连接池
-	list<int> connectionList;
 	int maxsock = listenfd;
-	//连接描述符集合
-	fd_set fds;
 	//select超时时间
 	timeval timeout;
 	
@@ -97,8 +97,7 @@ void Connect::listening() {
 			//返回长度为0，意味着客户端断开连接，这时服务端也可以断开连接并从连接池中去除该连接
 			if(ret <= 0) {
 				printf("客户端断开连接\n");
-				close(connection);
-				FD_CLR(connection, &fds);
+				clear(connection, true);
 				item = connectionList.erase(item);
 				continue;
 			}
@@ -110,8 +109,7 @@ void Connect::listening() {
 			try {
 				returnChars = MessageHandler::action(connection, msg);
 			} catch(invalid_argument& e) {
-				close(connection);
-				FD_CLR(connection, &fds);
+				clear(connection, false);
 				item = connectionList.erase(item);
 				cout << e.what() << "-服务器断开连接\n";
 				continue;
@@ -144,9 +142,10 @@ void Connect::listening() {
 	close(listenfd);
 }
 
-
-
-Connect::~Connect() {
-	
+void Connect::clear(int connection, bool clearChild) {
+	close(connection);
+	FD_CLR(connection, &fds);
+	if(clearChild) {
+		MessageHandler::clear(connection, true);
+	}
 }
-

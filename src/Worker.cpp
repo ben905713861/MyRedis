@@ -9,6 +9,7 @@ using namespace std;
 
 
 map<string, string> dataMap;
+map<int, string> multiMap;
 
 string* Worker::work(int connection, void** commandStr) {
 	try {
@@ -57,7 +58,7 @@ string* Worker::work(int connection, void** commandStr) {
 		return res;
 	} catch(invalid_argument& e) {
 		//执行异常,清除登录连接
-		Auth::clear(connection);
+		clear(connection);
 		throw invalid_argument(e.what());
 	}
 }
@@ -98,8 +99,18 @@ string* Worker::set(string* key, string* value) {
 }
 
 string* Worker::del(string* key) {
-//	dataMap[*key] = *value;
-//	delete key;
-//	delete value;
+	map<string, string>::iterator item = dataMap.find(*key);
+	dataMap.erase(item);
+	delete key;
 	return new string("+OK\r\n");
 }
+
+
+void Worker::clear(int connection) {
+	if(multiMap.count(connection) > 0) {
+		map<int, string>::iterator item = multiMap.find(connection);
+		multiMap.erase(item);
+	}
+	Auth::clear(connection);
+}
+

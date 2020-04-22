@@ -23,7 +23,8 @@ char* MessageHandler::action(int connection, char* msg) {
 		res = (void**)decode(tempCommand, startIndex);
 	} catch(invalid_argument& e) {
 		//解码异常,清除
-		clear(connection);
+		clear(connection, true);
+		
 		throw invalid_argument(e.what());
 	}
 	
@@ -37,7 +38,7 @@ char* MessageHandler::action(int connection, char* msg) {
 			returnMsg = Worker::work(connection, res);
 		} catch(invalid_argument& e) {
 			//执行异常,清除
-			clear(connection);
+			clear(connection, false);
 			throw invalid_argument(e.what());
 		} 
 	}
@@ -70,7 +71,6 @@ void* MessageHandler::decode(string command, int& startIndex) {
 		cout << "没有接收够一行数据,退出" << endl;
 		return NULL;
 	}
-	
 	
 	switch(command[startIndex]) {
 		//数组
@@ -182,8 +182,12 @@ void* MessageHandler::decode(string command, int& startIndex) {
 }
 
 
-void MessageHandler::clear(int connection) {
-	map<int, string>::iterator iter = connection2tempcommand.find(connection);
-	connection2tempcommand.erase(iter);
-	 cout << "ss";
+void MessageHandler::clear(int connection, bool clearChild) {
+	if(connection2tempcommand.count(connection) > 0) {
+		map<int, string>::iterator item = connection2tempcommand.find(connection);
+		connection2tempcommand.erase(item);
+	}
+	if(clearChild) {
+		Worker::clear(connection);
+	}
 }

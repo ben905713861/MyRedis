@@ -7,6 +7,7 @@ class Worker {
 	
 public:
 	static string* work(int connection, void** command);
+	static void clear(int connection);
 private:
 	static string* command();
 	static string* auth(int connection, string* password);

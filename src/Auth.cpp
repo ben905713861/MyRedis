@@ -31,6 +31,8 @@ void Auth::clear(int connection) {
 	if(loginPassword == "") {
 		return;
 	}
-	set<int>::iterator item = authConnectionSet.find(connection);
-	authConnectionSet.erase(item);
+	if(authConnectionSet.count(connection) > 0) {
+		set<int>::iterator item = authConnectionSet.find(connection);
+		authConnectionSet.erase(item);
+	}
 }
