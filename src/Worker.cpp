@@ -54,6 +54,23 @@ string* Worker::work(int connection, void** commandStr) {
 				string* value = (string*)commandStr[2];
 				res = set(key, value);
 			}
+			else if(*commandHead == "DEL") {
+				if(commandStr[1] == NULL) {
+					throw invalid_argument("字段名不得为空");
+				}
+				string* key = (string*)commandStr[1];
+				res = del(key);
+			}
+			else if(*commandHead == "KEYS") {
+				if(commandStr[1] == NULL) {
+					throw invalid_argument("参数1不得为空");
+				}
+				string* key = (string*)commandStr[1];
+				res = keys(key);
+			}
+			else {
+				res = new string("-ERR unknown command'"+ *commandHead +"'\r\n");
+			}
 		}
 		return res;
 	} catch(invalid_argument& e) {
@@ -99,12 +116,98 @@ string* Worker::set(string* key, string* value) {
 }
 
 string* Worker::del(string* key) {
-	map<string, string>::iterator item = dataMap.find(*key);
-	dataMap.erase(item);
+	string* res;
+	int count = dataMap.count(*key);
+	if(count > 0) {
+		map<string, string>::iterator item = dataMap.find(*key);
+		dataMap.erase(item);
+		res = new string(":1\r\n");
+	} else {
+		res = new string(":0\r\n");
+	}
 	delete key;
-	return new string("+OK\r\n");
+	return res;
 }
 
+string* Worker::keys(string* param) {
+	string* res = new string;
+	int resKeySize = 0;
+	string* resKeys[dataMap.size()];
+	
+	//遍历所有的key
+	for(map<string, string>::iterator item = dataMap.begin(); item != dataMap.end(); item ++) {
+		string key = item->first;
+		int keyLen = item->first.length();
+		
+		int paramLen = (*param).length();
+		bool isMultiPass = false;
+		int keyStartIndex = 0;
+		
+		for(int i = 0; i < paramLen; i++) {
+			char paramItem = (*param)[i];
+			if(paramItem == '*') {
+				isMultiPass = true;
+				continue;
+			}
+			
+			//已经扫完所有的keyItem,但仍然未循环完param,直接结束,本次过滤不合格
+			if(keyStartIndex >= keyLen) {
+				goto end;
+			}
+			
+			for(int j = keyStartIndex; j < keyLen; j++) {
+				char keyItem = key[j];
+				if(paramItem == '*') {
+					isMultiPass = true;
+					break;
+				} else {
+					if(keyItem == paramItem) {
+						keyStartIndex = j + 1;
+						isMultiPass = false;
+						break;
+					} else {
+						if(isMultiPass) {
+							keyStartIndex = j + 1;
+							//已经扫完所有的keyItem,但仍然未循环完param,直接结束,本次过滤不合格
+							if(keyStartIndex >= keyLen) {
+								goto end;
+							}
+							continue;
+						} else {
+							goto end;
+						}
+					}
+				}
+			}
+			//param已经遍历完,但keyItem没有扫完,直接结束,本次过滤不合格
+			if(keyStartIndex < keyLen && i == paramLen-1) {
+				goto end;
+			}
+		}
+		//过滤得到合格的
+		string* _key;
+		_key = new string;
+		*_key = key;
+		resKeys[++resKeySize] = _key;
+		
+		end:;
+	}
+	
+	
+	//输出
+	stringstream ss;
+	ss << "*" << resKeySize << "\r\n";
+	for(int k = 0; k < resKeySize; k++) {
+		string* key = resKeys[k];
+		cout << *key << endl;
+		ss << "$" << (*key).length() << "\r\n" << *key << "\r\n";
+//		delete key;
+	}
+	*res = ss.str();
+	
+	delete param;
+	return res;
+}
 
 void Worker::clear(int connection) {
 	if(multiMap.count(connection) > 0) {

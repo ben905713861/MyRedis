@@ -14,6 +14,7 @@ private:
 	static string* get(string* key);
 	static string* set(string* key, string* value);
 	static string* del(string* key);
+	static string* keys(string* param);
 };
 
 #endif /* WORKER_H_ */

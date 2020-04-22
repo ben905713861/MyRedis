@@ -17,14 +17,14 @@ char* MessageHandler::action(int connection, char* msg) {
 	
 	//解码
 	int startIndex = 0;
+	int deep = 0;
 	string* returnMsg;
 	void** res;
 	try {
-		res = (void**)decode(tempCommand, startIndex);
+		res = (void**)decode(tempCommand, startIndex, deep);
 	} catch(invalid_argument& e) {
 		//解码异常,清除
 		clear(connection, true);
-		
 		throw invalid_argument(e.what());
 	}
 	
@@ -54,7 +54,7 @@ char* MessageHandler::action(int connection, char* msg) {
 }
 
 
-void* MessageHandler::decode(string command, int& startIndex) {
+void* MessageHandler::decode(string command, int& startIndex, int& deep) {
 	if(startIndex != 0) {
 		startIndex += 1;
 	}
@@ -78,6 +78,11 @@ void* MessageHandler::decode(string command, int& startIndex) {
 			if(command.length() <= 3) {
 				throw invalid_argument("*后没有数字");
 			}
+			//数组层数计数判断
+			if(++deep > 1) {
+				throw invalid_argument("*数组深度最大为2");
+			}
+			
 			int length = 0;
 			while(1) {
 				startIndex ++;
@@ -104,7 +109,7 @@ void* MessageHandler::decode(string command, int& startIndex) {
 			for(int i = 0; i < length; i++) {
 				//发生异常时候释放array内存,然后再次向上层抛出
 				try {
-					void* result = decode(command, startIndex);
+					void* result = decode(command, startIndex, deep);
 					if(result == NULL) {
 						return NULL;
 					}
@@ -117,26 +122,30 @@ void* MessageHandler::decode(string command, int& startIndex) {
 			return array;
 		}
 		
-		//简单字符串
-		case '+': {
-			string* tempStr = new string;
-			while(1) {
-				startIndex ++;
-				if(command[startIndex] == '\r') {
-					continue;
-				}
-				if(command[startIndex-1] == '\r' && command[startIndex] == '\n') {
-					break;
-				}
-				*tempStr += command[startIndex];
-			}
-			return tempStr;
-		}
+//		//简单字符串
+//		case '+': {
+//			string* tempStr = new string;
+//			while(1) {
+//				startIndex ++;
+//				if(command[startIndex] == '\r') {
+//					continue;
+//				}
+//				if(command[startIndex-1] == '\r' && command[startIndex] == '\n') {
+//					break;
+//				}
+//				*tempStr += command[startIndex];
+//			}
+//			return tempStr;
+//		}
 		
 		//变长字符串
 		case '$': {
 			if(command.length() <= 3) {
 				throw invalid_argument("$后没有数字");
+			}
+			//数组层数计数判断
+			if(deep != 1) {
+				throw invalid_argument("仅能在1层数组中传递$字符串");
 			}
 			int length = 0;
 			while(1) {
@@ -176,7 +185,7 @@ void* MessageHandler::decode(string command, int& startIndex) {
 //			;
 //			break;
 		default:
-			return NULL;
+			throw invalid_argument("不能识别的命令头");
 	}
 	
 }

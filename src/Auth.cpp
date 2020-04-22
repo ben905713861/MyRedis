@@ -6,7 +6,7 @@ using namespace std;
 
 
 set<int> authConnectionSet;
-string loginPassword = "123456";
+string loginPassword = "";
 
 
 bool Auth::login(int connection, string* password) {
