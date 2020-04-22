@@ -1,5 +1,12 @@
 /.git
 /.settings
-/Debug
 /.cproject
 /.project
+
+!/Debug/
+/Debug/*
+!/Debug/*.mk
+
+!/Debug/src/
+/Debug/src/*
+!/Debug/src/*.mk
