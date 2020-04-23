@@ -11,3 +11,4 @@
 !/Debug/src/
 /Debug/src/*
 !/Debug/src/*.mk
+/Debug/

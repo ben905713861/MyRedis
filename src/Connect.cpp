@@ -111,7 +111,7 @@ void Connect::listening() {
 			} catch(invalid_argument& e) {
 				clear(connection, false);
 				item = connectionList.erase(item);
-				cout << e.what() << "-服务器断开连接\n";
+//				cout << e.what() << "-服务器断开连接\n";
 				continue;
 			}
 			//响应数据流

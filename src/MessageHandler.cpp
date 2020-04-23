@@ -18,7 +18,7 @@ char* MessageHandler::action(int connection, char* msg) {
 	//解码
 	int startIndex = 0;
 	int deep = 0;
-	string* returnMsg;
+	string returnMsg;
 	void** res;
 	try {
 		res = (void**)decode(tempCommand, startIndex, deep);
@@ -29,8 +29,8 @@ char* MessageHandler::action(int connection, char* msg) {
 	}
 	
 	if(res == NULL) {
-		cout << "本次发送数据不全,暂停解码" << endl;
-		returnMsg = new string("");
+//		cout << "本次发送数据不全,暂停解码" << endl;
+		returnMsg = "";
 	} else {
 		connection2tempcommand[connection] = "";
 		//执行命令
@@ -44,12 +44,11 @@ char* MessageHandler::action(int connection, char* msg) {
 	}
 	delete [] res;
 	
-	int returnLength = (*returnMsg).length();
+	int returnLength = returnMsg.length();
 	char* returnChars = new char[returnLength + 1];
-	returnMsg->copy(returnChars, returnLength, 0);
+	returnMsg.copy(returnChars, returnLength, 0);
 	returnChars[returnLength] = '\0';
 	
-	delete returnMsg;
 	return returnChars;
 }
 
@@ -68,7 +67,7 @@ void* MessageHandler::decode(string command, int& startIndex, int& deep) {
 		}
 	}
 	if(isLine == false) {
-		cout << "没有接收够一行数据,退出" << endl;
+//		cout << "没有接收够一行数据,退出" << endl;
 		return NULL;
 	}
 	
@@ -167,7 +166,7 @@ void* MessageHandler::decode(string command, int& startIndex, int& deep) {
 			//接下来要接的字符串少于定义的长度,退出不处理
 			int commandLen = command.length();
 			if(commandLen - (startIndex+1) < length + 2) {
-				cout << "没有接收够一行数据,退出" << endl;
+//				cout << "没有接收够一行数据,退出" << endl;
 				return NULL;
 			}
 			string* tempStr = new string; 
@@ -178,12 +177,6 @@ void* MessageHandler::decode(string command, int& startIndex, int& deep) {
 			startIndex += 2;
 			return tempStr;
 		}
-//		case ':':
-//			;
-//			break;
-//		case '-':
-//			;
-//			break;
 		default:
 			throw invalid_argument("不能识别的命令头");
 	}
