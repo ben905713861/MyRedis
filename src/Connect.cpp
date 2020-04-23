@@ -2,19 +2,18 @@
 #include "MessageHandler.h"
 #include <stdio.h>
 #include <string.h>
-#include <stdlib.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <list>
-#include <iostream>
+#include <set>
+#include <stdexcept>
 using namespace std;
 
 
 int listenfd;
 //连接池
-list<int> connectionList;
+set<int> connectionSet;
 //连接描述符集合
 fd_set fds;
 
@@ -66,7 +65,7 @@ void Connect::listening() {
 		//添加描述符用于监听socket端口的accept是否有新connection进来
 		FD_SET(listenfd, &fds);
 		//添加描述符用于监听每个connection的recv是否有数据流进来
-		for(auto connection : connectionList) {
+		for(auto connection : connectionSet) {
 			FD_SET(connection, &fds);
 		}
 		
@@ -86,7 +85,7 @@ void Connect::listening() {
 		
 		//对所有连接遍历,找出其中有数据流的连接,然后接收数据
 		char buff[200];
-		for(list<int>::iterator item = connectionList.begin(); item != connectionList.end(); ) {
+		for(set<int>::iterator item = connectionSet.begin(); item != connectionSet.end(); ) {
 			int connection = *item;
 			if(!FD_ISSET(connection, &fds)) {
 				item ++;
@@ -98,7 +97,7 @@ void Connect::listening() {
 			if(ret <= 0) {
 				printf("客户端断开连接\n");
 				clear(connection, true);
-				item = connectionList.erase(item);
+				item = connectionSet.erase(item);
 				continue;
 			}
 			buff[ret] = '\0';
@@ -110,14 +109,14 @@ void Connect::listening() {
 				returnChars = MessageHandler::action(connection, msg);
 			} catch(invalid_argument& e) {
 				clear(connection, false);
-				item = connectionList.erase(item);
+				item = connectionSet.erase(item);
 //				cout << e.what() << "-服务器断开连接\n";
 				continue;
 			}
 			//响应数据流
 			send(connection, returnChars, strlen(returnChars), 0);
 			
-			delete returnChars;
+			delete [] returnChars;
 			item ++;
 		}
 		
@@ -131,12 +130,11 @@ void Connect::listening() {
 				continue;
 			}
 			//加入连接池
-			connectionList.push_back(connection);
+			connectionSet.insert(connection);
 			//这里很重要，一定要判断最大值，因为重新分配的connection值有可能是已经释放过的历史值
 			maxsock = connection > maxsock ? connection : maxsock;
 			printf("发现新连接\n");
 		}
-		fflush(stdout);
 	}
 	close(listenfd);
 }

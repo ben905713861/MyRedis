@@ -4,29 +4,29 @@
 #include <string>
 #include <sstream>
 #include <algorithm>
-#include <map>
+#include <unordered_map>
 #include <list>
 using namespace std;
 
 
-map<string, string> dataMap;
-map<int, list<void**>*> multiMap;
+unordered_map<string, string> dataMap(16384);
+unordered_map<int, list<void**>*> multiMap;
 
 string Worker::work(int connection, void** commandStr) {
 	try {
 		string res;
-		string* commandHead = (string*)commandStr[0];
+		string commandHead = *(string*)commandStr[0];
 		//转大写
-		transform((*commandHead).begin(), (*commandHead).end(), (*commandHead).begin(), ::toupper);
+		transform(commandHead.begin(), commandHead.end(), commandHead.begin(), ::toupper);
 		
 		//分析命令
 		//登录操作
-		if(*commandHead == "COMMAND") {
+		if(commandHead == "COMMAND") {
 			res = command();
 			return res;
 		}
 		//验证密码
-		if(*commandHead == "AUTH") {
+		if(commandHead == "AUTH") {
 			if(commandStr[1] == NULL) {
 				throw invalid_argument("密码不得为空");
 			}
@@ -41,11 +41,11 @@ string Worker::work(int connection, void** commandStr) {
 			return res;
 		}
 		
-		if(*commandHead == "MULTI") {
+		if(commandHead == "MULTI") {
 			res = multi(connection);
 			return res;
 		}
-		if(*commandHead == "EXEC") {
+		if(commandHead == "EXEC") {
 			res = exec(connection);
 			return res;
 		}
@@ -62,21 +62,23 @@ string Worker::work(int connection, void** commandStr) {
 			}
 			void** commandStrNew = new void*[len+1]{NULL};
 			for(int i = 0; i < len; i++) {
-				commandStrNew[i] = commandStr[i];
+				string* temp = new string;
+				*temp = *(string*)commandStr[i];
+				commandStrNew[i] = temp;
 			}
 			multiMap[connection]->push_back(commandStrNew);
 			return "+QUEUED\r\n";
 		}
 		
 		//常规操作
-		if(*commandHead == "GET") {
+		if(commandHead == "GET") {
 			if(commandStr[1] == NULL) {
 				throw invalid_argument("字段名不得为空");
 			}
 			string* key = (string*)commandStr[1];
 			res = get(key);
 		}
-		else if(*commandHead == "SET") {
+		else if(commandHead == "SET") {
 			if(commandStr[1] == NULL) {
 				throw invalid_argument("字段名不得为空");
 			}
@@ -87,14 +89,14 @@ string Worker::work(int connection, void** commandStr) {
 			string* value = (string*)commandStr[2];
 			res = set(key, value);
 		}
-		else if(*commandHead == "DEL") {
+		else if(commandHead == "DEL") {
 			if(commandStr[1] == NULL) {
 				throw invalid_argument("字段名不得为空");
 			}
 			string* key = (string*)commandStr[1];
 			res = del(key);
 		}
-		else if(*commandHead == "KEYS") {
+		else if(commandHead == "KEYS") {
 			if(commandStr[1] == NULL) {
 				throw invalid_argument("参数1不得为空");
 			}
@@ -102,7 +104,7 @@ string Worker::work(int connection, void** commandStr) {
 			res = keys(key);
 		}
 		else {
-			res = "-ERR unknown command'"+ *commandHead +"'\r\n";
+			res = "-ERR unknown command'"+ commandHead +"'\r\n";
 		}
 		
 		return res;
@@ -137,14 +139,11 @@ string Worker::get(string* key) {
 		ss << "$" << len << "\r\n" << value << "\r\n";
 		res = ss.str();
 	}
-	delete key;
 	return res;
 }
 
 string Worker::set(string* key, string* value) {
 	dataMap[*key] = *value;
-	delete key;
-	delete value;
 	return "+OK\r\n";
 }
 
@@ -152,13 +151,12 @@ string Worker::del(string* key) {
 	string res;
 	int count = dataMap.count(*key);
 	if(count > 0) {
-		map<string, string>::iterator item = dataMap.find(*key);
+		unordered_map<string, string>::iterator item = dataMap.find(*key);
 		dataMap.erase(item);
 		res = ":1\r\n";
 	} else {
 		res = ":0\r\n";
 	}
-	delete key;
 	return res;
 }
 
@@ -184,6 +182,14 @@ string Worker::exec(int connection) {
 	for(list<void**>::iterator item = commandStrList->begin(); item != commandStrList->end(); item++) {
 		string res = work(connection, *item);
 		ss << res;
+		//free掉命令字符
+		for(int i = 0; ; i++) {
+			if((*item)[i] == NULL) {
+				break;
+			}
+			delete (string*)(*item)[i];
+		}
+		delete *item;
 	}
 	delete commandStrList;
 	
@@ -196,7 +202,7 @@ string Worker::keys(string* param) {
 	string resKeys[dataMap.size()];
 	
 	//遍历所有的key
-	for(map<string, string>::iterator item = dataMap.begin(); item != dataMap.end(); item ++) {
+	for(unordered_map<string, string>::iterator item = dataMap.begin(); item != dataMap.end(); item ++) {
 		string key = item->first;
 		int keyLen = item->first.length();
 		

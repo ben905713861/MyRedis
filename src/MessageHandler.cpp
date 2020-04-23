@@ -36,13 +36,30 @@ char* MessageHandler::action(int connection, char* msg) {
 		//执行命令
 		try {
 			returnMsg = Worker::work(connection, res);
+			//free掉命令字符
+			for(int i = 0; ; i++) {
+				if(res[i] == NULL) {
+					break;
+				}
+				delete res[i];
+			}
+			delete [] res;
+			
 		} catch(invalid_argument& e) {
 			//执行异常,清除
 			clear(connection, false);
+			//free掉命令字符
+			for(int i = 0; ; i++) {
+				if(res[i] == NULL) {
+					break;
+				}
+				delete res[i];
+			}
+			delete [] res;
+			
 			throw invalid_argument(e.what());
-		} 
+		}
 	}
-	delete [] res;
 	
 	int returnLength = returnMsg.length();
 	char* returnChars = new char[returnLength + 1];
@@ -121,22 +138,6 @@ void* MessageHandler::decode(string command, int& startIndex, int& deep) {
 			return array;
 		}
 		
-//		//简单字符串
-//		case '+': {
-//			string* tempStr = new string;
-//			while(1) {
-//				startIndex ++;
-//				if(command[startIndex] == '\r') {
-//					continue;
-//				}
-//				if(command[startIndex-1] == '\r' && command[startIndex] == '\n') {
-//					break;
-//				}
-//				*tempStr += command[startIndex];
-//			}
-//			return tempStr;
-//		}
-		
 		//变长字符串
 		case '$': {
 			if(command.length() <= 3) {
@@ -169,11 +170,14 @@ void* MessageHandler::decode(string command, int& startIndex, int& deep) {
 //				cout << "没有接收够一行数据,退出" << endl;
 				return NULL;
 			}
-			string* tempStr = new string; 
+			char buff[length + 1];
 			for(int i = 0; i < length; i++) {
 				startIndex ++;
-				*tempStr += command[startIndex];
+				buff[i] = command[startIndex];
 			}
+			buff[length] = '\0';
+			
+			string* tempStr = new string(buff);
 			startIndex += 2;
 			return tempStr;
 		}
