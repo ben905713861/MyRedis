@@ -17,6 +17,7 @@ private:
 	static string multi(int connection);
 	static string exec(int connection);
 	static string keys(string* param);
+	static void freeCommandParam(void** commanParam);
 };
 
 #endif /* WORKER_H_ */

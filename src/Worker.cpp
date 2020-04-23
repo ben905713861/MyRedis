@@ -12,10 +12,10 @@ using namespace std;
 unordered_map<string, string> dataMap(16384);
 unordered_map<int, list<void**>*> multiMap;
 
-string Worker::work(int connection, void** commandStr) {
+string Worker::work(int connection, void** commandParam) {
 	try {
 		string res;
-		string commandHead = *(string*)commandStr[0];
+		string commandHead = *(string*)commandParam[0];
 		//转大写
 		transform(commandHead.begin(), commandHead.end(), commandHead.begin(), ::toupper);
 		
@@ -23,30 +23,35 @@ string Worker::work(int connection, void** commandStr) {
 		//登录操作
 		if(commandHead == "COMMAND") {
 			res = command();
+			freeCommandParam(commandParam);
 			return res;
 		}
 		//验证密码
 		if(commandHead == "AUTH") {
-			if(commandStr[1] == NULL) {
+			if(commandParam[1] == NULL) {
 				throw invalid_argument("密码不得为空");
 			}
-			string* password = (string*)commandStr[1];
+			string* password = (string*)commandParam[1];
 			res = auth(connection, password);
+			freeCommandParam(commandParam);
 			return res;
 		}
 		
 		//检验密码登录权限
 		if(Auth::checkLogin(connection) == false) {
 			res = "-NOAUTH Authentication required.\r\n";
+			freeCommandParam(commandParam);
 			return res;
 		}
 		
 		if(commandHead == "MULTI") {
 			res = multi(connection);
+			freeCommandParam(commandParam);
 			return res;
 		}
 		if(commandHead == "EXEC") {
 			res = exec(connection);
+			freeCommandParam(commandParam);
 			return res;
 		}
 		
@@ -55,62 +60,64 @@ string Worker::work(int connection, void** commandStr) {
 			//拷贝内存
 			int len = 0;
 			for(int i = 0; ; i++) {
-				if(commandStr[i] == NULL) {
+				if(commandParam[i] == NULL) {
 					break;
 				}
 				len++;
 			}
-			void** commandStrNew = new void*[len+1]{NULL};
+			void** commandParamNew = new void*[len+1]{NULL};
 			for(int i = 0; i < len; i++) {
 				string* temp = new string;
-				*temp = *(string*)commandStr[i];
-				commandStrNew[i] = temp;
+				*temp = *(string*)commandParam[i];
+				commandParamNew[i] = temp;
 			}
-			multiMap[connection]->push_back(commandStrNew);
+			multiMap[connection]->push_back(commandParamNew);
+			freeCommandParam(commandParam);
 			return "+QUEUED\r\n";
 		}
 		
 		//常规操作
 		if(commandHead == "GET") {
-			if(commandStr[1] == NULL) {
+			if(commandParam[1] == NULL) {
 				throw invalid_argument("字段名不得为空");
 			}
-			string* key = (string*)commandStr[1];
+			string* key = (string*)commandParam[1];
 			res = get(key);
 		}
 		else if(commandHead == "SET") {
-			if(commandStr[1] == NULL) {
+			if(commandParam[1] == NULL) {
 				throw invalid_argument("字段名不得为空");
 			}
-			string* key = (string*)commandStr[1];
-			if(commandStr[2] == NULL) {
+			string* key = (string*)commandParam[1];
+			if(commandParam[2] == NULL) {
 				throw invalid_argument("记录值不得为空");
 			}
-			string* value = (string*)commandStr[2];
+			string* value = (string*)commandParam[2];
 			res = set(key, value);
 		}
 		else if(commandHead == "DEL") {
-			if(commandStr[1] == NULL) {
+			if(commandParam[1] == NULL) {
 				throw invalid_argument("字段名不得为空");
 			}
-			string* key = (string*)commandStr[1];
+			string* key = (string*)commandParam[1];
 			res = del(key);
 		}
 		else if(commandHead == "KEYS") {
-			if(commandStr[1] == NULL) {
+			if(commandParam[1] == NULL) {
 				throw invalid_argument("参数1不得为空");
 			}
-			string* key = (string*)commandStr[1];
+			string* key = (string*)commandParam[1];
 			res = keys(key);
 		}
 		else {
 			res = "-ERR unknown command'"+ commandHead +"'\r\n";
 		}
-		
+		freeCommandParam(commandParam);
 		return res;
 	} catch(invalid_argument& e) {
 		//执行异常,清除登录连接
 		clear(connection);
+		freeCommandParam(commandParam);
 		throw invalid_argument(e.what());
 	}
 }
@@ -172,26 +179,18 @@ string Worker::exec(int connection) {
 	if(multiMap.count(connection) == 0) {
 		return "-ERR EXEC without MULTI\r\n";
 	}
-	list<void**>* commandStrList = multiMap[connection];
+	list<void**>* commandParamList = multiMap[connection];
 	//先从map中移除
 	multiMap.erase(multiMap.find(connection));
 	
 	stringstream ss;
-	ss << "*" << commandStrList->size() << "\r\n";
+	ss << "*" << commandParamList->size() << "\r\n";
 	//重新调用work()获取结果
-	for(list<void**>::iterator item = commandStrList->begin(); item != commandStrList->end(); item++) {
+	for(list<void**>::iterator item = commandParamList->begin(); item != commandParamList->end(); item++) {
 		string res = work(connection, *item);
 		ss << res;
-		//free掉命令字符
-		for(int i = 0; ; i++) {
-			if((*item)[i] == NULL) {
-				break;
-			}
-			delete (string*)(*item)[i];
-		}
-		delete *item;
 	}
-	delete commandStrList;
+	delete commandParamList;
 	
 	return ss.str();
 }
@@ -272,3 +271,12 @@ void Worker::clear(int connection) {
 	Auth::clear(connection);
 }
 
+void Worker::freeCommandParam(void** commandParam) {
+	for(int i = 0; ; i++) {
+		if(commandParam[i] == NULL) {
+			break;
+		}
+		delete (string*)commandParam[i];
+	}
+	delete [] commandParam;
+}

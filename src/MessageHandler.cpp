@@ -19,44 +19,26 @@ char* MessageHandler::action(int connection, char* msg) {
 	int startIndex = 0;
 	int deep = 0;
 	string returnMsg;
-	void** res;
+	void** commandParam;
 	try {
-		res = (void**)decode(tempCommand, startIndex, deep);
+		commandParam = (void**)decode(tempCommand, startIndex, deep);
 	} catch(invalid_argument& e) {
 		//解码异常,清除
 		clear(connection, true);
 		throw invalid_argument(e.what());
 	}
 	
-	if(res == NULL) {
+	if(commandParam == NULL) {
 //		cout << "本次发送数据不全,暂停解码" << endl;
 		returnMsg = "";
 	} else {
 		connection2tempcommand[connection] = "";
 		//执行命令
 		try {
-			returnMsg = Worker::work(connection, res);
-			//free掉命令字符
-			for(int i = 0; ; i++) {
-				if(res[i] == NULL) {
-					break;
-				}
-				delete res[i];
-			}
-			delete [] res;
-			
+			returnMsg = Worker::work(connection, commandParam);
 		} catch(invalid_argument& e) {
 			//执行异常,清除
 			clear(connection, false);
-			//free掉命令字符
-			for(int i = 0; ; i++) {
-				if(res[i] == NULL) {
-					break;
-				}
-				delete res[i];
-			}
-			delete [] res;
-			
 			throw invalid_argument(e.what());
 		}
 	}
