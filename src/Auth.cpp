@@ -9,11 +9,11 @@ set<int> authConnectionSet;
 string loginPassword = "";
 
 
-bool Auth::login(int connection, string* password) {
+bool Auth::login(int connection, string password) {
 	if(loginPassword == "") {
 		return true;
 	}
-	if(*password == loginPassword) {
+	if(password == loginPassword) {
 		authConnectionSet.insert(connection);
 		return true;
 	}
