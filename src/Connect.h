@@ -8,6 +8,7 @@ public:
 private:
 	static void listening();
 	static void clear(int connection, bool clearChild);
+	static void exitListening(int sig);
 };
 
 #endif /* CONNECT_H_ */

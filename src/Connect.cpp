@@ -1,6 +1,7 @@
 #include "Connect.h"
 #include "MessageHandler.h"
 #include <stdio.h>
+#include <signal.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -16,6 +17,7 @@ int listenfd;
 set<int> connectionSet;
 //连接描述符集合
 fd_set fds;
+
 
 void Connect::startServer(int port) {
 	//创建 IPv4协议的字节流套接字,若成功则返回一个套接字描述符
@@ -48,6 +50,10 @@ void Connect::startServer(int port) {
 		exit(-1);
 	}
 	
+	//注册退出事件
+	signal(SIGINT, exitListening);
+	signal(SIGTERM, exitListening);
+	//监听
 	listening();
 }
 
@@ -58,7 +64,6 @@ void Connect::listening() {
 	timeval timeout;
 	
 	printf("======waiting for client's request======\n");
-	
 	while (1) {
 		//每次循环都要清空集合，否则不能检测描述符变化
 		FD_ZERO(&fds);
@@ -75,6 +80,10 @@ void Connect::listening() {
 		//同时监听所有的连接是否来信息和是否有新连接产生
 		int ret = select(maxsock+1, &fds, NULL, NULL, &timeout);
 		if(ret < 0) {
+			//侦听到程序退出信号
+			if(errno == EINTR) {
+				return;
+			}
 			perror("select错误");
 			exit(-1);
 		}
@@ -136,7 +145,6 @@ void Connect::listening() {
 			printf("发现新连接\n");
 		}
 	}
-	close(listenfd);
 }
 
 void Connect::clear(int connection, bool clearChild) {
@@ -146,3 +154,14 @@ void Connect::clear(int connection, bool clearChild) {
 		MessageHandler::clear(connection, true);
 	}
 }
+
+void Connect::exitListening(int sig) {
+	//退出程序
+	for(set<int>::iterator item = connectionSet.begin(); item != connectionSet.end(); ) {
+		int connection = *item;
+		clear(connection, true);
+	}
+	close(listenfd);
+	printf("程序正常结束\n");
+}
+
